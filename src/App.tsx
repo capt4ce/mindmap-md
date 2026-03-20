@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import MindmapPanel from './components/MindmapPanel'
 import EditorPanel from './components/EditorPanel'
 import ResizableDivider from './components/ResizableDivider'
+import ThemeToggle from './components/ThemeToggle'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useDebouncedCallback } from './hooks/useDebouncedCallback'
 import { parseMarkdownToTree } from './utils/parser'
@@ -24,6 +25,7 @@ interface StoredData {
   markdown: string
   collapsedNodes: string[]
   editorHeight: number
+  isDarkMode: boolean
 }
 
 function App() {
@@ -31,6 +33,7 @@ function App() {
     markdown: DEFAULT_MARKDOWN,
     collapsedNodes: [],
     editorHeight: 40,
+    isDarkMode: false,
   })
   
   const [markdown, setMarkdown] = useState<string>(storedData.markdown)
@@ -38,22 +41,27 @@ function App() {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(
     new Set(storedData.collapsedNodes)
   )
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(storedData.isDarkMode)
+  
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
   
   const treeData = useMemo(() => parseMarkdownToTree(markdown), [markdown])
   
-  // Debounced save to localStorage
   const debouncedSave = useDebouncedCallback((data: StoredData) => {
     setStoredData(data)
   }, 1000)
   
-  // Save when state changes
   useEffect(() => {
     debouncedSave({
       markdown,
       collapsedNodes: Array.from(collapsedNodes),
       editorHeight,
+      isDarkMode,
     })
-  }, [markdown, collapsedNodes, editorHeight, debouncedSave])
+  }, [markdown, collapsedNodes, editorHeight, isDarkMode, debouncedSave])
   
   const handleMarkdownChange = useCallback((newMarkdown: string) => {
     setMarkdown(newMarkdown)
@@ -84,11 +92,16 @@ function App() {
       return Math.max(15, Math.min(70, newPercent))
     })
   }, [])
+  
+  const handleThemeToggle = useCallback(() => {
+    setIsDarkMode(prev => !prev)
+  }, [])
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>Mindmap Markdown Editor</h1>
+        <ThemeToggle isDark={isDarkMode} onToggle={handleThemeToggle} />
       </header>
       <main className="app-main">
         <div style={{ height: `${100 - editorHeight}%` }}>
