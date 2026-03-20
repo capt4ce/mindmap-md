@@ -1,12 +1,27 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import MindmapPanel from './components/MindmapPanel'
+import { parseMarkdownToTree } from './utils/parser'
 import './styles/App.css'
 
-function App() {
-  const [markdown, setMarkdown] = useState<string>(`- Project Ideas
+const DEFAULT_MARKDOWN = `- Project Ideas
   - Mobile App
     - Fitness Tracker
+    - Recipe Manager
   - Web Tool
-    - Markdown Editor`)
+    - Markdown Editor
+    - API Dashboard
+- Resources
+  - Design Inspiration
+  - Code Snippets`
+
+function App() {
+  const [markdown, setMarkdown] = useState<string>(DEFAULT_MARKDOWN)
+  
+  const treeData = useMemo(() => parseMarkdownToTree(markdown), [markdown])
+  
+  const handleNodeClick = (nodeId: string) => {
+    console.log('Node clicked:', nodeId)
+  }
 
   return (
     <div className="app">
@@ -14,12 +29,13 @@ function App() {
         <h1>Mindmap Markdown Editor</h1>
       </header>
       <main className="app-main">
-        <div className="panel mindmap-panel">
-          <p>Mindmap Panel (React Flow)</p>
-        </div>
+        <MindmapPanel 
+          treeData={treeData} 
+          onNodeClick={handleNodeClick}
+        />
         <div className="divider" />
         <div className="panel editor-panel">
-          <p>Editor Panel (Milkdown)</p>
+          <p>Editor Panel (Milkdown) - {Object.keys(treeData.nodes).length} nodes</p>
         </div>
       </main>
     </div>

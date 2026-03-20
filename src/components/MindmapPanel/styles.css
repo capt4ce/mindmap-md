@@ -1,0 +1,72 @@
+.mindmap-panel {
+  flex: 1;
+  position: relative;
+}
+
+.react-flow {
+  background-color: var(--bg-secondary);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.mindmap-node {
+  background: var(--node-bg);
+  border: 2px solid var(--node-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.mindmap-node:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.mindmap-node.selected {
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.node-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 3px;
+  padding: 0;
+}
+
+.collapse-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.node-label {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.handle {
+  width: 8px !important;
+  height: 8px !important;
+  background-color: var(--node-border) !important;
+  border: 2px solid var(--node-bg) !important;
+}
