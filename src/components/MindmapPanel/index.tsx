@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import {
   ReactFlow,
   Background,
@@ -10,7 +10,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import MindmapNode from './MindmapNode'
-import type { TreeData } from '@/types'
+import { TreeData } from '@/types'
 import { generateFlowElements } from '@/utils/layout'
 
 const nodeTypes = {
@@ -19,19 +19,35 @@ const nodeTypes = {
 
 interface MindmapPanelProps {
   treeData: TreeData
+  collapsedNodes: Set<string>
   onNodeClick?: (nodeId: string) => void
   onNodeCollapse?: (nodeId: string) => void
 }
 
-function MindmapPanelInner({ treeData, onNodeClick, onNodeCollapse }: MindmapPanelProps) {
-  const { nodes: initialNodes, edges: initialEdges } = generateFlowElements(treeData)
+function MindmapPanelInner({ 
+  treeData, 
+  collapsedNodes, 
+  onNodeClick, 
+  onNodeCollapse 
+}: MindmapPanelProps) {
+  // Apply collapsed state to treeData before generating flow
+  const effectiveTreeData = useMemo(() => {
+    const modifiedNodes = { ...treeData.nodes }
+    for (const nodeId of collapsedNodes) {
+      if (modifiedNodes[nodeId]) {
+        modifiedNodes[nodeId] = { ...modifiedNodes[nodeId], collapsed: true }
+      }
+    }
+    return { ...treeData, nodes: modifiedNodes }
+  }, [treeData, collapsedNodes])
+  
+  const { nodes: initialNodes, edges: initialEdges } = generateFlowElements(effectiveTreeData)
   
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   
-  // Update when treeData changes
   useEffect(() => {
-    const { nodes: newNodes, edges: newEdges } = generateFlowElements(treeData)
+    const { nodes: newNodes, edges: newEdges } = generateFlowElements(effectiveTreeData)
     // Inject onCollapse handler into node data
     const nodesWithHandler = newNodes.map(node => ({
       ...node,
@@ -42,7 +58,7 @@ function MindmapPanelInner({ treeData, onNodeClick, onNodeCollapse }: MindmapPan
     }))
     setNodes(nodesWithHandler)
     setEdges(newEdges)
-  }, [treeData, setNodes, setEdges, onNodeCollapse])
+  }, [effectiveTreeData, setNodes, setEdges, onNodeCollapse])
   
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     onNodeClick?.(node.id)

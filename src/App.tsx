@@ -18,7 +18,8 @@ const DEFAULT_MARKDOWN = `- Project Ideas
 
 function App() {
   const [markdown, setMarkdown] = useState<string>(DEFAULT_MARKDOWN)
-  const [editorHeight, setEditorHeight] = useState<number>(40) // percentage
+  const [editorHeight, setEditorHeight] = useState<number>(40)
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set())
   
   const treeData = useMemo(() => parseMarkdownToTree(markdown), [markdown])
   
@@ -30,13 +31,25 @@ function App() {
     console.log('Node clicked:', nodeId)
   }
   
+  const handleNodeCollapse = useCallback((nodeId: string) => {
+    setCollapsedNodes(prev => {
+      const next = new Set(prev)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return next
+    })
+  }, [])
+  
   const handleResize = useCallback((delta: number) => {
     setEditorHeight(prev => {
-      const containerHeight = window.innerHeight - 48 // subtract header
+      const containerHeight = window.innerHeight - 48
       const pixelHeight = (prev / 100) * containerHeight
       const newPixelHeight = pixelHeight + delta
       const newPercent = (newPixelHeight / containerHeight) * 100
-      return Math.max(15, Math.min(70, newPercent)) // clamp between 15% and 70%
+      return Math.max(15, Math.min(70, newPercent))
     })
   }, [])
 
@@ -46,20 +59,16 @@ function App() {
         <h1>Mindmap Markdown Editor</h1>
       </header>
       <main className="app-main">
-        <div 
-          className="mindmap-container"
-          style={{ height: `${100 - editorHeight}%` }}
-        >
+        <div style={{ height: `${100 - editorHeight}%` }}>
           <MindmapPanel 
-            treeData={treeData} 
+            treeData={treeData}
+            collapsedNodes={collapsedNodes}
             onNodeClick={handleNodeClick}
+            onNodeCollapse={handleNodeCollapse}
           />
         </div>
         <ResizableDivider onResize={handleResize} />
-        <div 
-          className="editor-container"
-          style={{ height: `${editorHeight}%` }}
-        >
+        <div style={{ height: `${editorHeight}%` }}>
           <EditorPanel 
             value={markdown}
             onChange={handleMarkdownChange}
