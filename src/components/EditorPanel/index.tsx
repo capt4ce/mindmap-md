@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { Milkdown, useEditor } from '@milkdown/react'
 import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core'
 import { commonmark } from '@milkdown/preset-commonmark'
@@ -12,8 +11,6 @@ interface EditorPanelProps {
 }
 
 function MilkdownEditor({ value, onChange }: EditorPanelProps) {
-  const editorRef = useRef<Editor | null>(null)
-  
   useEditor((root) => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -27,9 +24,8 @@ function MilkdownEditor({ value, onChange }: EditorPanelProps) {
       .use(commonmark)
       .use(listener)
     
-    editorRef.current = editor
     return editor
-  }, [value, onChange])
+  }, [])
   
   return <Milkdown />
 }
