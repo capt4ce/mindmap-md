@@ -1,0 +1,25 @@
+.resizable-divider {
+  height: 6px;
+  background-color: var(--border-color);
+  cursor: row-resize;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.resizable-divider:hover,
+.resizable-divider:active {
+  background-color: var(--accent-color);
+}
+
+.resizable-divider::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 4px;
+  background-color: currentColor;
+  opacity: 0.3;
+  border-radius: 2px;
+}

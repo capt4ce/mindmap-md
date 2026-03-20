@@ -27,38 +27,13 @@
   overflow: hidden;
 }
 
-.panel {
+.mindmap-container {
+  flex: 1;
+  min-height: 30%;
   overflow: hidden;
 }
 
-.mindmap-panel {
-  flex: 1;
-  background-color: var(--bg-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.editor-panel {
-  height: 40%;
+.editor-container {
   min-height: 150px;
-  background-color: var(--bg-primary);
-}
-
-/* Update editor-panel styles when used in app-main */
-.app-main .editor-panel {
-  flex: none;
-  height: 40%;
-  min-height: 150px;
-}
-
-.divider {
-  height: 4px;
-  background-color: var(--border-color);
-  cursor: row-resize;
-  transition: background-color 0.2s;
-}
-
-.divider:hover {
-  background-color: var(--accent-color);
+  overflow: hidden;
 }
