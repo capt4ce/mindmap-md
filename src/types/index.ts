@@ -28,3 +28,17 @@ export type FlowEdge = {
   source: string;
   target: string;
 };
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  collapsedNodes: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NotesStorage {
+  notes: Note[];
+  activeNoteId: string | null;
+}
