@@ -43,9 +43,13 @@
   height: 40%;
   min-height: 150px;
   background-color: var(--bg-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+/* Update editor-panel styles when used in app-main */
+.app-main .editor-panel {
+  flex: none;
+  height: 40%;
+  min-height: 150px;
 }
 
 .divider {

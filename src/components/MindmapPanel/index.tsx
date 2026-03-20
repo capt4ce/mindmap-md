@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
   ReactFlow,
   Background,
@@ -10,7 +10,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import MindmapNode from './MindmapNode'
-import { FlowNode, FlowEdge, TreeData } from '@/types'
+import type { TreeData } from '@/types'
 import { generateFlowElements } from '@/utils/layout'
 
 const nodeTypes = {

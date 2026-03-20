@@ -1,7 +1,5 @@
 import { TreeData, FlowNode, FlowEdge } from '@/types'
 
-const NODE_WIDTH = 150
-const NODE_HEIGHT = 40
 const HORIZONTAL_SPACING = 180
 const VERTICAL_SPACING = 60
 

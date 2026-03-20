@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import MindmapPanel from './components/MindmapPanel'
+import EditorPanel from './components/EditorPanel'
 import { parseMarkdownToTree } from './utils/parser'
 import './styles/App.css'
 
@@ -19,6 +20,10 @@ function App() {
   
   const treeData = useMemo(() => parseMarkdownToTree(markdown), [markdown])
   
+  const handleMarkdownChange = useCallback((newMarkdown: string) => {
+    setMarkdown(newMarkdown)
+  }, [])
+
   const handleNodeClick = (nodeId: string) => {
     console.log('Node clicked:', nodeId)
   }
@@ -34,9 +39,10 @@ function App() {
           onNodeClick={handleNodeClick}
         />
         <div className="divider" />
-        <div className="panel editor-panel">
-          <p>Editor Panel (Milkdown) - {Object.keys(treeData.nodes).length} nodes</p>
-        </div>
+        <EditorPanel 
+          value={markdown}
+          onChange={handleMarkdownChange}
+        />
       </main>
     </div>
   )

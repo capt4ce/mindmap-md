@@ -1,0 +1,56 @@
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-primary);
+}
+
+.editor-toolbar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.toolbar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editor-content {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+/* Milkdown theme overrides */
+.milkdown {
+  font-family: inherit;
+}
+
+.milkdown .editor {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.milkdown .editor:focus {
+  outline: none;
+}
+
+.milkdown ul {
+  padding-left: 24px;
+}
+
+.milkdown li {
+  margin: 4px 0;
+}
+
+.milkdown li > p {
+  margin: 0;
+}
