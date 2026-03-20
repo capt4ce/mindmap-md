@@ -6,6 +6,8 @@ import ThemeToggle from './components/ThemeToggle'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useDebouncedCallback } from './hooks/useDebouncedCallback'
 import { parseMarkdownToTree } from './utils/parser'
+import { treeToMarkdown } from './utils/serializer'
+import { updateNodeInMarkdown } from './utils/markdown'
 import './styles/App.css'
 
 const DEFAULT_MARKDOWN = `- Project Ideas
@@ -83,6 +85,96 @@ function App() {
     })
   }, [])
   
+  const handleNodeAction = useCallback((action: 'addChild' | 'addSibling' | 'delete' | 'edit', nodeId: string) => {
+    const tree = { 
+      nodes: { ...treeData.nodes }, 
+      rootIds: [...treeData.rootIds] 
+    }
+    const node = tree.nodes[nodeId]
+    if (!node) return
+    
+    switch (action) {
+      case 'addChild': {
+        const newId = `node-${Date.now()}`
+        tree.nodes[newId] = {
+          id: newId,
+          text: 'New item',
+          level: node.level + 1,
+          parentId: nodeId,
+          children: [],
+          collapsed: false,
+        }
+        tree.nodes[nodeId].children.push(newId)
+        break
+      }
+      case 'addSibling': {
+        if (!node.parentId) {
+          const newId = `node-${Date.now()}`
+          tree.nodes[newId] = {
+            id: newId,
+            text: 'New item',
+            level: 0,
+            parentId: null,
+            children: [],
+            collapsed: false,
+          }
+          tree.rootIds.push(newId)
+        } else {
+          const parent = tree.nodes[node.parentId]
+          const index = parent.children.indexOf(nodeId)
+          const newId = `node-${Date.now()}`
+          tree.nodes[newId] = {
+            id: newId,
+            text: 'New item',
+            level: node.level,
+            parentId: node.parentId,
+            children: [],
+            collapsed: false,
+          }
+          parent.children.splice(index + 1, 0, newId)
+        }
+        break
+      }
+      case 'delete': {
+        if (node.parentId) {
+          const parent = tree.nodes[node.parentId]
+          parent.children = parent.children.filter(id => id !== nodeId)
+        } else {
+          tree.rootIds = tree.rootIds.filter(id => id !== nodeId)
+        }
+        const toRemove = [nodeId]
+        const collectDescendants = (id: string) => {
+          const n = tree.nodes[id]
+          for (const childId of n.children) {
+            toRemove.push(childId)
+            collectDescendants(childId)
+          }
+        }
+        collectDescendants(nodeId)
+        for (const id of toRemove) {
+          delete tree.nodes[id]
+        }
+        break
+      }
+      case 'edit': {
+        const newText = prompt('Edit text:', node.text)
+        if (newText !== null && newText.trim()) {
+          tree.nodes[nodeId].text = newText.trim()
+        }
+        break
+      }
+    }
+    
+    const newMarkdown = treeToMarkdown(tree)
+    setMarkdown(newMarkdown)
+  }, [treeData])
+  
+  const handleNodeEdit = useCallback((nodeId: string, newLabel: string) => {
+    setMarkdown(prevMarkdown => {
+      return updateNodeInMarkdown(prevMarkdown, nodeId, newLabel, treeData)
+    })
+  }, [treeData])
+  
   const handleResize = useCallback((delta: number) => {
     setEditorHeight(prev => {
       const containerHeight = window.innerHeight - 48
@@ -110,6 +202,8 @@ function App() {
             collapsedNodes={collapsedNodes}
             onNodeClick={handleNodeClick}
             onNodeCollapse={handleNodeCollapse}
+            onNodeEdit={handleNodeEdit}
+            onNodeAction={handleNodeAction}
           />
         </div>
         <ResizableDivider onResize={handleResize} />

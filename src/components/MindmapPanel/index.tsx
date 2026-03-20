@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -10,6 +10,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import MindmapNode from './MindmapNode'
+import ContextMenu from './ContextMenu'
 import { TreeData } from '@/types'
 import { generateFlowElements } from '@/utils/layout'
 
@@ -22,14 +23,20 @@ interface MindmapPanelProps {
   collapsedNodes: Set<string>
   onNodeClick?: (nodeId: string) => void
   onNodeCollapse?: (nodeId: string) => void
+  onNodeEdit?: (nodeId: string, newLabel: string) => void
+  onNodeAction?: (action: 'addChild' | 'addSibling' | 'delete' | 'edit', nodeId: string) => void
 }
 
 function MindmapPanelInner({ 
   treeData, 
   collapsedNodes, 
   onNodeClick, 
-  onNodeCollapse 
+  onNodeCollapse,
+  onNodeEdit,
+  onNodeAction,
 }: MindmapPanelProps) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null)
+  
   // Apply collapsed state to treeData before generating flow
   const effectiveTreeData = useMemo(() => {
     const modifiedNodes = { ...treeData.nodes }
@@ -48,21 +55,31 @@ function MindmapPanelInner({
   
   useEffect(() => {
     const { nodes: newNodes, edges: newEdges } = generateFlowElements(effectiveTreeData)
-    // Inject onCollapse handler into node data
+    // Inject onCollapse, onEdit, and onContextMenu handlers into node data
     const nodesWithHandler = newNodes.map(node => ({
       ...node,
       data: {
         ...node.data,
         onCollapse: onNodeCollapse,
+        onEdit: onNodeEdit,
+        onContextMenu: (id: string, x: number, y: number) => {
+          setContextMenu({ x, y, nodeId: id })
+        },
       },
     }))
     setNodes(nodesWithHandler)
     setEdges(newEdges)
-  }, [effectiveTreeData, setNodes, setEdges, onNodeCollapse])
+  }, [effectiveTreeData, setNodes, setEdges, onNodeCollapse, onNodeEdit])
   
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     onNodeClick?.(node.id)
   }, [onNodeClick])
+  
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenu(null)
+  }, [])
+  
+  const canDelete = contextMenu ? treeData.rootIds.length > 1 || treeData.nodes[contextMenu.nodeId]?.parentId !== null : false
   
   return (
     <div className="mindmap-panel">
@@ -72,6 +89,7 @@ function MindmapPanelInner({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
+        onPaneClick={handleContextMenuClose}
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-right"
@@ -79,6 +97,31 @@ function MindmapPanelInner({
         <Background color="var(--border-color)" gap={20} size={1} />
         <Controls />
       </ReactFlow>
+      
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleContextMenuClose}
+          onAddChild={() => {
+            onNodeAction?.('addChild', contextMenu.nodeId)
+            handleContextMenuClose()
+          }}
+          onAddSibling={() => {
+            onNodeAction?.('addSibling', contextMenu.nodeId)
+            handleContextMenuClose()
+          }}
+          onDelete={() => {
+            onNodeAction?.('delete', contextMenu.nodeId)
+            handleContextMenuClose()
+          }}
+          onEdit={() => {
+            onNodeAction?.('edit', contextMenu.nodeId)
+            handleContextMenuClose()
+          }}
+          canDelete={canDelete}
+        />
+      )}
     </div>
   )
 }

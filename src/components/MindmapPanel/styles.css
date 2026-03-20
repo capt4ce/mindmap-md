@@ -70,3 +70,14 @@
   background-color: var(--node-border) !important;
   border: 2px solid var(--node-bg) !important;
 }
+
+.node-edit-input {
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 100px;
+  outline: none;
+}
