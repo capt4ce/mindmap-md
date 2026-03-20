@@ -5,6 +5,8 @@ export interface TreeNode {
   parentId: string | null;
   children: string[];
   collapsed: boolean;
+  color?: string;
+  outlineColor?: string;
 }
 
 export interface TreeData {
@@ -20,6 +22,8 @@ export type FlowNode = {
     label: string;
     hasChildren: boolean;
     collapsed: boolean;
+    color?: string;
+    outlineColor?: string;
   };
 };
 
