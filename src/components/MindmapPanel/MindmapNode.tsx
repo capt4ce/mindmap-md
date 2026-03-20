@@ -9,6 +9,8 @@ interface MindmapNodeProps {
     label: string
     hasChildren: boolean
     collapsed: boolean
+    color?: string
+    outlineColor?: string
     onCollapse?: (id: string) => void
     onEdit?: (id: string, newLabel: string) => void
     onContextMenu?: (id: string, x: number, y: number) => void
@@ -74,6 +76,10 @@ const MindmapNode = memo(({ id, data, selected }: MindmapNodeProps) => {
       className={`mindmap-node ${selected ? 'selected' : ''}`} 
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
+      style={{
+        ...(data.color && { backgroundColor: data.color }),
+        ...(data.outlineColor && { borderColor: data.outlineColor }),
+      }}
     >
       <Handle type="target" position={Position.Left} className="handle" />
       
