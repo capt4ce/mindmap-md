@@ -38,6 +38,8 @@ export function generateFlowElements(tree: TreeData): { nodes: FlowNode[]; edges
         label: node.text,
         hasChildren: node.children.length > 0,
         collapsed: node.collapsed,
+        color: node.color,
+        outlineColor: node.outlineColor,
       },
     })
     
