@@ -65,4 +65,59 @@ More text
     expect(Object.keys(result.nodes)).toHaveLength(0)
     expect(result.rootIds).toHaveLength(0)
   })
+
+  it('parses nodes without attributes', () => {
+    const markdown = '- Node 1';
+    const result = parseMarkdownToTree(markdown);
+    
+    expect(result.rootIds).toHaveLength(1);
+    expect(result.nodes[result.rootIds[0]].text).toBe('Node 1');
+    expect(result.nodes[result.rootIds[0]].color).toBeUndefined();
+    expect(result.nodes[result.rootIds[0]].outlineColor).toBeUndefined();
+  });
+
+  it('parses color attribute with = format', () => {
+    const markdown = '- Node 1 {color=red}';
+    const result = parseMarkdownToTree(markdown);
+    
+    expect(result.nodes[result.rootIds[0]].text).toBe('Node 1');
+    expect(result.nodes[result.rootIds[0]].color).toBe('red');
+  });
+
+  it('parses both color and outline attributes', () => {
+    const markdown = '- Node 1 {color=#ff5733 outline=#333333}';
+    const result = parseMarkdownToTree(markdown);
+    
+    expect(result.nodes[result.rootIds[0]].text).toBe('Node 1');
+    expect(result.nodes[result.rootIds[0]].color).toBe('#ff5733');
+    expect(result.nodes[result.rootIds[0]].outlineColor).toBe('#333333');
+  });
+
+  it('parses CSS variable colors', () => {
+    const markdown = '- Node 1 {color=var(--accent)}';
+    const result = parseMarkdownToTree(markdown);
+    
+    expect(result.nodes[result.rootIds[0]].color).toBe('var(--accent)');
+  });
+
+  it('handles text with curly braces in the middle', () => {
+    const markdown = '- Node {special} text';
+    const result = parseMarkdownToTree(markdown);
+    
+    expect(result.nodes[result.rootIds[0]].text).toBe('Node {special} text');
+  });
+
+  it('parses nested nodes with attributes', () => {
+    const markdown = `- Parent {color=blue}
+  - Child {outline=red}`;
+    const result = parseMarkdownToTree(markdown);
+    
+    const parent = result.nodes[result.rootIds[0]];
+    expect(parent.color).toBe('blue');
+    expect(parent.children).toHaveLength(1);
+    
+    const child = result.nodes[parent.children[0]];
+    expect(child.outlineColor).toBe('red');
+    expect(child.text).toBe('Child');
+  });
 })
