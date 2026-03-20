@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   background-color: var(--bg-primary);
+  overflow: hidden;
 }
 
 .editor-toolbar {
@@ -12,6 +14,7 @@
   padding: 0 12px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .toolbar-title {
@@ -24,33 +27,35 @@
 
 .editor-content {
   flex: 1;
-  overflow: auto;
-  padding: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Milkdown theme overrides */
-.milkdown {
-  font-family: inherit;
-}
-
-.milkdown .editor {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-
-.milkdown .editor:focus {
+/* Textarea-based markdown editor */
+.markdown-textarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: none;
   outline: none;
+  font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  padding: 16px;
+  white-space: pre;
+  overflow: auto;
 }
 
-.milkdown ul {
-  padding-left: 24px;
+.markdown-textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
 }
 
-.milkdown li {
-  margin: 4px 0;
-}
-
-.milkdown li > p {
-  margin: 0;
+.markdown-textarea:focus {
+  background: var(--bg-primary);
 }

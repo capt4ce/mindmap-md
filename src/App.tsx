@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import NotesList from './components/NotesList'
 import MindmapPanel from './components/MindmapPanel'
 import EditorPanel from './components/EditorPanel'
 import ResizableDivider from './components/ResizableDivider'
@@ -6,11 +7,48 @@ import ThemeToggle from './components/ThemeToggle'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useDebouncedCallback } from './hooks/useDebouncedCallback'
 import { parseMarkdownToTree } from './utils/parser'
-import { treeToMarkdown } from './utils/serializer'
-import { updateNodeInMarkdown } from './utils/markdown'
+import { Note, NotesStorage } from './types'
 import './styles/App.css'
 
-const DEFAULT_MARKDOWN = `- Project Ideas
+const DEFAULT_MARKDOWN = `- New Note
+  - Item 1
+  - Item 2`
+
+const NOTES_STORAGE_KEY = 'mindmap-notes'
+
+// Fallback for browsers that don't support crypto.randomUUID
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+}
+
+const createNewNote = (): Note => ({
+  id: generateId(),
+  title: 'Untitled Note',
+  content: DEFAULT_MARKDOWN,
+  collapsedNodes: [],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+})
+
+function App() {
+  const [storage, setStorage] = useLocalStorage<NotesStorage>(NOTES_STORAGE_KEY, {
+    notes: [],
+    activeNoteId: null,
+  })
+  
+  // Use a ref to always have access to current storage in callbacks
+  const storageRef = useRef(storage)
+  storageRef.current = storage
+  
+  // Initialize with a default note if no notes exist
+  useEffect(() => {
+    if (storageRef.current.notes.length === 0) {
+      const defaultNote = createNewNote()
+      defaultNote.title = 'Welcome'
+      defaultNote.content = `- Project Ideas
   - Mobile App
     - Fitness Tracker
     - Recipe Manager
@@ -20,54 +58,58 @@ const DEFAULT_MARKDOWN = `- Project Ideas
 - Resources
   - Design Inspiration
   - Code Snippets`
-
-const STORAGE_KEY = 'mindmap-markdown-editor'
-
-interface StoredData {
-  markdown: string
-  collapsedNodes: string[]
-  editorHeight: number
-  isDarkMode: boolean
-}
-
-function App() {
-  const [storedData, setStoredData] = useLocalStorage<StoredData>(STORAGE_KEY, {
-    markdown: DEFAULT_MARKDOWN,
-    collapsedNodes: [],
-    editorHeight: 40,
-    isDarkMode: false,
-  })
+      const newStorage = {
+        notes: [defaultNote],
+        activeNoteId: defaultNote.id,
+      }
+      setStorage(newStorage)
+      storageRef.current = newStorage
+    }
+  }, [setStorage])
   
-  const [markdown, setMarkdown] = useState<string>(storedData.markdown)
-  const [editorHeight, setEditorHeight] = useState<number>(storedData.editorHeight)
+  const activeNote = useMemo(() => {
+    return storage.notes.find(n => n.id === storage.activeNoteId) || null
+  }, [storage])
+  
+  const [editorHeight, setEditorHeight] = useState<number>(40)
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(
-    new Set(storedData.collapsedNodes)
+    new Set(activeNote?.collapsedNodes || [])
   )
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(storedData.isDarkMode)
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
+  
+  // Update collapsed nodes when active note changes
+  useEffect(() => {
+    if (activeNote) {
+      setCollapsedNodes(new Set(activeNote.collapsedNodes))
+    }
+  }, [activeNote?.id])
   
   // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
   }, [isDarkMode])
   
+  const markdown = activeNote?.content || ''
   const treeData = useMemo(() => parseMarkdownToTree(markdown), [markdown])
   
-  const debouncedSave = useDebouncedCallback((data: StoredData) => {
-    setStoredData(data)
-  }, 1000)
-  
-  useEffect(() => {
-    debouncedSave({
-      markdown,
-      collapsedNodes: Array.from(collapsedNodes),
-      editorHeight,
-      isDarkMode,
+  // Auto-save note changes - update note in storage
+  const debouncedSave = useDebouncedCallback((note: Note) => {
+    const current = storageRef.current
+    setStorage({
+      ...current,
+      notes: current.notes.map(n => n.id === note.id ? note : n),
     })
-  }, [markdown, collapsedNodes, editorHeight, isDarkMode, debouncedSave])
+  }, 500)
+  
+  const updateActiveNote = useCallback((updates: Partial<Note>) => {
+    if (!activeNote) return
+    const updatedNote = { ...activeNote, ...updates, updatedAt: Date.now() }
+    debouncedSave(updatedNote)
+  }, [activeNote, debouncedSave])
   
   const handleMarkdownChange = useCallback((newMarkdown: string) => {
-    setMarkdown(newMarkdown)
-  }, [])
+    updateActiveNote({ content: newMarkdown })
+  }, [updateActiveNote])
 
   const handleNodeClick = (nodeId: string) => {
     console.log('Node clicked:', nodeId)
@@ -81,99 +123,46 @@ function App() {
       } else {
         next.add(nodeId)
       }
+      // Save collapsed state to active note
+      updateActiveNote({ collapsedNodes: Array.from(next) })
       return next
     })
-  }, [])
+  }, [updateActiveNote])
   
-  const handleNodeAction = useCallback((action: 'addChild' | 'addSibling' | 'delete' | 'edit', nodeId: string) => {
-    const tree = { 
-      nodes: { ...treeData.nodes }, 
-      rootIds: [...treeData.rootIds] 
-    }
-    const node = tree.nodes[nodeId]
-    if (!node) return
-    
-    switch (action) {
-      case 'addChild': {
-        const newId = `node-${Date.now()}`
-        tree.nodes[newId] = {
-          id: newId,
-          text: 'New item',
-          level: node.level + 1,
-          parentId: nodeId,
-          children: [],
-          collapsed: false,
-        }
-        tree.nodes[nodeId].children.push(newId)
-        break
-      }
-      case 'addSibling': {
-        if (!node.parentId) {
-          const newId = `node-${Date.now()}`
-          tree.nodes[newId] = {
-            id: newId,
-            text: 'New item',
-            level: 0,
-            parentId: null,
-            children: [],
-            collapsed: false,
-          }
-          tree.rootIds.push(newId)
-        } else {
-          const parent = tree.nodes[node.parentId]
-          const index = parent.children.indexOf(nodeId)
-          const newId = `node-${Date.now()}`
-          tree.nodes[newId] = {
-            id: newId,
-            text: 'New item',
-            level: node.level,
-            parentId: node.parentId,
-            children: [],
-            collapsed: false,
-          }
-          parent.children.splice(index + 1, 0, newId)
-        }
-        break
-      }
-      case 'delete': {
-        if (node.parentId) {
-          const parent = tree.nodes[node.parentId]
-          parent.children = parent.children.filter(id => id !== nodeId)
-        } else {
-          tree.rootIds = tree.rootIds.filter(id => id !== nodeId)
-        }
-        const toRemove = [nodeId]
-        const collectDescendants = (id: string) => {
-          const n = tree.nodes[id]
-          for (const childId of n.children) {
-            toRemove.push(childId)
-            collectDescendants(childId)
-          }
-        }
-        collectDescendants(nodeId)
-        for (const id of toRemove) {
-          delete tree.nodes[id]
-        }
-        break
-      }
-      case 'edit': {
-        const newText = prompt('Edit text:', node.text)
-        if (newText !== null && newText.trim()) {
-          tree.nodes[nodeId].text = newText.trim()
-        }
-        break
-      }
-    }
-    
-    const newMarkdown = treeToMarkdown(tree)
-    setMarkdown(newMarkdown)
-  }, [treeData])
-  
-  const handleNodeEdit = useCallback((nodeId: string, newLabel: string) => {
-    setMarkdown(prevMarkdown => {
-      return updateNodeInMarkdown(prevMarkdown, nodeId, newLabel, treeData)
+  const handleCreateNote = useCallback(() => {
+    const newNote = createNewNote()
+    const current = storageRef.current
+    setStorage({
+      notes: [...current.notes, newNote],
+      activeNoteId: newNote.id,
     })
-  }, [treeData])
+  }, [setStorage])
+  
+  const handleSelectNote = useCallback((noteId: string) => {
+    const current = storageRef.current
+    setStorage({ ...current, activeNoteId: noteId })
+  }, [setStorage])
+  
+  const handleDeleteNote = useCallback((noteId: string) => {
+    const current = storageRef.current
+    const newNotes = current.notes.filter(n => n.id !== noteId)
+    setStorage({
+      notes: newNotes,
+      activeNoteId: current.activeNoteId === noteId 
+        ? (newNotes[0]?.id || null) 
+        : current.activeNoteId,
+    })
+  }, [setStorage])
+  
+  const handleUpdateNoteTitle = useCallback((noteId: string, title: string) => {
+    const current = storageRef.current
+    setStorage({
+      ...current,
+      notes: current.notes.map(n => 
+        n.id === noteId ? { ...n, title, updatedAt: Date.now() } : n
+      ),
+    })
+  }, [setStorage])
   
   const handleResize = useCallback((delta: number) => {
     setEditorHeight(prev => {
@@ -191,29 +180,37 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>Mindmap Markdown Editor</h1>
-        <ThemeToggle isDark={isDarkMode} onToggle={handleThemeToggle} />
-      </header>
-      <main className="app-main">
-        <div style={{ height: `${100 - editorHeight}%` }}>
-          <MindmapPanel 
-            treeData={treeData}
-            collapsedNodes={collapsedNodes}
-            onNodeClick={handleNodeClick}
-            onNodeCollapse={handleNodeCollapse}
-            onNodeEdit={handleNodeEdit}
-            onNodeAction={handleNodeAction}
-          />
-        </div>
-        <ResizableDivider onResize={handleResize} />
-        <div style={{ height: `${editorHeight}%` }}>
-          <EditorPanel 
-            value={markdown}
-            onChange={handleMarkdownChange}
-          />
-        </div>
-      </main>
+      <NotesList
+        notes={storage.notes}
+        activeNoteId={storage.activeNoteId}
+        onSelectNote={handleSelectNote}
+        onCreateNote={handleCreateNote}
+        onDeleteNote={handleDeleteNote}
+        onUpdateNoteTitle={handleUpdateNoteTitle}
+      />
+      <div className="app-main-container">
+        <header className="app-header">
+          <h1>{activeNote?.title || 'Mindmap Markdown Editor'}</h1>
+          <ThemeToggle isDark={isDarkMode} onToggle={handleThemeToggle} />
+        </header>
+        <main className="app-main">
+          <div style={{ height: `${100 - editorHeight}%`, display: 'flex' }}>
+            <MindmapPanel 
+              treeData={treeData}
+              collapsedNodes={collapsedNodes}
+              onNodeClick={handleNodeClick}
+              onNodeCollapse={handleNodeCollapse}
+            />
+          </div>
+          <ResizableDivider onResize={handleResize} />
+          <div style={{ height: `${editorHeight}%`, display: 'flex' }}>
+            <EditorPanel 
+              value={markdown}
+              onChange={handleMarkdownChange}
+            />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

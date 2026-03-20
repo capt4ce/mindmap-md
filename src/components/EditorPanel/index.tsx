@@ -1,58 +1,43 @@
-import { useRef, useState, useEffect } from 'react'
-import { Milkdown, useEditor } from '@milkdown/react'
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core'
-import { commonmark } from '@milkdown/preset-commonmark'
-import { listener, listenerCtx } from '@milkdown/plugin-listener'
-import { nord } from '@milkdown/theme-nord'
+import { useCallback, useState, useEffect } from 'react'
 import './styles.css'
 
 interface EditorPanelProps {
   value: string
   onChange: (value: string) => void
+  noteId?: string
 }
 
-function MilkdownEditor({ value, onChange }: EditorPanelProps) {
-  const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
-
-  useEditor((root) => {
-    const editor = Editor.make()
-      .config((ctx) => {
-        ctx.set(rootCtx, root)
-        ctx.set(defaultValueCtx, value)
-        ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          onChangeRef.current(markdown)
-        })
-      })
-      .config(nord)
-      .use(commonmark)
-      .use(listener)
-    
-    return editor
-  }, [])
+export default function EditorPanel({ value, onChange, noteId }: EditorPanelProps) {
+  const [localValue, setLocalValue] = useState(value)
   
-  return <Milkdown />
-}
-
-export default function EditorPanel({ value, onChange }: EditorPanelProps) {
-  // Use a key to force re-render when value changes externally
-  // Milkdown's useEditor only uses the initial value and doesn't update on prop changes
-  const [editorKey, setEditorKey] = useState(0)
-  const lastExternalValueRef = useRef(value)
-  
+  // Update local value when prop changes (e.g., switching notes)
   useEffect(() => {
-    // If the value prop changed and is different from what we last saw,
-    // it means the value was changed externally (e.g., loading a new document)
-    if (value !== lastExternalValueRef.current) {
-      lastExternalValueRef.current = value
-      setEditorKey(k => k + 1)
-    }
-  }, [value])
-
-  const handleChange = (newValue: string) => {
-    lastExternalValueRef.current = newValue
+    setLocalValue(value)
+  }, [value, noteId])
+  
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    setLocalValue(newValue)
     onChange(newValue)
-  }
+  }, [onChange])
+  
+  // Handle tab key for indentation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const target = e.target as HTMLTextAreaElement
+      const start = target.selectionStart
+      const end = target.selectionEnd
+      const newValue = localValue.substring(0, start) + '  ' + localValue.substring(end)
+      setLocalValue(newValue)
+      onChange(newValue)
+      
+      // Restore cursor position
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 2
+      }, 0)
+    }
+  }, [localValue, onChange])
 
   return (
     <div className="editor-panel">
@@ -60,7 +45,19 @@ export default function EditorPanel({ value, onChange }: EditorPanelProps) {
         <span className="toolbar-title">Markdown Editor</span>
       </div>
       <div className="editor-content">
-        <MilkdownEditor key={editorKey} value={value} onChange={handleChange} />
+        <textarea
+          key={noteId || 'default'}
+          className="markdown-textarea"
+          value={localValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your markdown here...
+
+- Use dashes for bullet points
+- Use two spaces for indentation
+- Tab key inserts 2 spaces"
+          spellCheck={false}
+        />
       </div>
     </div>
   )
