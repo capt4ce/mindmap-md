@@ -8,7 +8,17 @@ export function treeToMarkdown(tree: TreeData): string {
     if (!node) return
     
     const spaces = '  '.repeat(indent)
-    lines.push(`${spaces}- ${node.text}`)
+    let line = `${spaces}- ${node.text}`
+
+    // Append color attributes if present
+    if (node.color || node.outlineColor) {
+      const attrs: string[] = []
+      if (node.color) attrs.push(`color=${node.color}`)
+      if (node.outlineColor) attrs.push(`outline=${node.outlineColor}`)
+      line += ` {${attrs.join(' ')}}`
+    }
+
+    lines.push(line)
     
     for (const childId of node.children) {
       processNode(childId, indent + 1)
