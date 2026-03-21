@@ -19,6 +19,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     italic: false,
     underline: false,
   })
+  const [cursorPosition, setCursorPosition] = useState(0)
   
   useEffect(() => {
     setLocalValue(value)
@@ -58,10 +59,105 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     }
   }, [history, historyIndex, onChange])
   
-  const handleFormat = useCallback((format: 'bold' | 'italic' | 'underline') => {
-    // Placeholder - will implement in Task 3
-    console.log('Format:', format)
+  const detectFormatsAtCursor = useCallback((text: string, cursorPos: number) => {
+    // Get current line
+    const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
+    const lineEnd = text.indexOf('\n', cursorPos)
+    const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd)
+    
+    // Get text before and after cursor within the line
+    const beforeCursor = line.substring(0, cursorPos - lineStart)
+    const afterCursor = line.substring(cursorPos - lineStart)
+    
+    // Check for bold: **text** or __text__
+    // Look for opening marker before cursor and closing marker after cursor
+    const boldOpenBefore = beforeCursor.match(/\*\*[^*]*$/) || beforeCursor.match(/__[^_]*$/)
+    const boldCloseAfter = afterCursor.match(/^[^*]*\*\*/) || afterCursor.match(/^[^_]*__/)
+    const isBold = !!(boldOpenBefore && boldCloseAfter)
+    
+    // Check for italic: *text* or _text_ (but not ** which is bold)
+    // Look for single asterisk/underscore pairs
+    const italicOpenBefore = beforeCursor.match(/(?<!\*)\*[^*]*$/) || beforeCursor.match(/(?<!_)_[^_]*$/)
+    const italicCloseAfter = afterCursor.match(/^[^*]*\*(?!\*)/) || afterCursor.match(/^[^_]*_(?!_)/)
+    const isItalic = !!(italicOpenBefore && italicCloseAfter)
+    
+    // Check for underline: <u>text</u>
+    const underlineOpenBefore = beforeCursor.match(/<u>[^<]*$/)
+    const underlineCloseAfter = afterCursor.match(/^[^<]*<\/u>/)
+    const isUnderline = !!(underlineOpenBefore && underlineCloseAfter)
+    
+    return { bold: isBold, italic: isItalic, underline: isUnderline }
   }, [])
+
+  const handleSelect = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement
+    const pos = target.selectionStart
+    setCursorPosition(pos)
+    setActiveFormats(detectFormatsAtCursor(localValue, pos))
+  }, [localValue, detectFormatsAtCursor])
+
+  const handleFormat = useCallback((format: 'bold' | 'italic' | 'underline') => {
+    const textarea = document.querySelector('.markdown-textarea') as HTMLTextAreaElement
+    if (!textarea) return
+    
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = localValue.substring(start, end)
+    
+    const formatMarkers: Record<string, { open: string; close: string }> = {
+      bold: { open: '**', close: '**' },
+      italic: { open: '*', close: '*' },
+      underline: { open: '<u>', close: '</u>' },
+    }
+    
+    const marker = formatMarkers[format]
+    const isFormatted = activeFormats[format]
+    
+    let newText: string
+    let newCursorStart: number
+    let newCursorEnd: number
+    
+    if (isFormatted && selectedText) {
+      // Remove formatting from selection
+      newText = localValue.substring(0, start) + selectedText + localValue.substring(end)
+      newCursorStart = start
+      newCursorEnd = end
+    } else if (isFormatted) {
+      // Remove formatting around cursor (simplified: just insert empty)
+      newText = localValue
+      newCursorStart = start
+      newCursorEnd = end
+    } else if (selectedText) {
+      // Wrap selection with format
+      newText = localValue.substring(0, start) + marker.open + selectedText + marker.close + localValue.substring(end)
+      newCursorStart = start
+      newCursorEnd = end + marker.open.length + marker.close.length
+    } else {
+      // Insert empty format markers and place cursor inside
+      const emptyFormat = marker.open + marker.close
+      newText = localValue.substring(0, start) + emptyFormat + localValue.substring(end)
+      newCursorStart = start + marker.open.length
+      newCursorEnd = start + marker.open.length
+    }
+    
+    setLocalValue(newText)
+    onChange(newText)
+    
+    // Update history
+    const newHistory = history.slice(0, historyIndex + 1)
+    if (newHistory.length >= 50) newHistory.shift()
+    newHistory.push(newText)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+    
+    // Restore selection and update formats after render
+    setTimeout(() => {
+      textarea.selectionStart = newCursorStart
+      textarea.selectionEnd = newCursorEnd
+      textarea.focus()
+      setActiveFormats(detectFormatsAtCursor(newText, newCursorStart))
+    }, 0)
+  }, [localValue, history, historyIndex, onChange, activeFormats, detectFormatsAtCursor])
   
   const getLineIndent = (text: string, cursorPos: number): string => {
     const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
@@ -71,6 +167,35 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
   }
   
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle keyboard shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+        return
+      }
+      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
+      if (e.key === 'b') {
+        e.preventDefault()
+        handleFormat('bold')
+        return
+      }
+      if (e.key === 'i') {
+        e.preventDefault()
+        handleFormat('italic')
+        return
+      }
+      if (e.key === 'u') {
+        e.preventDefault()
+        handleFormat('underline')
+        return
+      }
+    }
+
     const target = e.target as HTMLTextAreaElement
     const start = target.selectionStart
     const end = target.selectionEnd
@@ -184,6 +309,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
           value={localValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onSelect={handleSelect}
           placeholder="Type your markdown here...
 
 - Use dashes for bullet points
