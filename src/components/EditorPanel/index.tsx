@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect } from 'react'
 import './styles.css'
+import EditorToolbar from '../EditorToolbar'
 
 const INDENT_SIZE = 2
 
@@ -11,6 +12,13 @@ interface EditorPanelProps {
 
 export default function EditorPanel({ value, onChange, noteId }: EditorPanelProps) {
   const [localValue, setLocalValue] = useState(value)
+  const [history, setHistory] = useState<string[]>([value])
+  const [historyIndex, setHistoryIndex] = useState(0)
+  const [activeFormats, _setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+  })
   
   useEffect(() => {
     setLocalValue(value)
@@ -19,8 +27,41 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value
     setLocalValue(newValue)
+    
+    // Push to history (remove future states if we're not at end)
+    const newHistory = history.slice(0, historyIndex + 1)
+    if (newHistory.length >= 50) {
+      newHistory.shift() // Remove oldest
+    }
+    newHistory.push(newValue)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+    
     onChange(newValue)
-  }, [onChange])
+  }, [history, historyIndex, onChange])
+  
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setLocalValue(history[newIndex])
+      onChange(history[newIndex])
+    }
+  }, [history, historyIndex, onChange])
+  
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setLocalValue(history[newIndex])
+      onChange(history[newIndex])
+    }
+  }, [history, historyIndex, onChange])
+  
+  const handleFormat = useCallback((format: 'bold' | 'italic' | 'underline') => {
+    // Placeholder - will implement in Task 3
+    console.log('Format:', format)
+  }, [])
   
   const getLineIndent = (text: string, cursorPos: number): string => {
     const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
@@ -127,8 +168,15 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
 
   return (
     <div className="editor-panel">
-      <div className="editor-toolbar">
-        <span className="toolbar-title">Markdown Editor</span>
+      <div className="editor-toolbar-container">
+        <EditorToolbar
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          activeFormats={activeFormats}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onFormat={handleFormat}
+        />
       </div>
       <div className="editor-content">
         <textarea
