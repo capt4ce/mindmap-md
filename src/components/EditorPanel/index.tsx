@@ -254,6 +254,15 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     newHistory.push(newText)
     setHistory(newHistory)
     setHistoryIndex(newHistory.length - 1)
+    
+    // Restore cursor position and focus
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = cursorPos
+        textareaRef.current.selectionEnd = cursorPos
+        textareaRef.current.focus()
+      }
+    }, 0)
   }, [localValue, history, historyIndex, onChange, detectColorsAtLine])
   
   const getLineIndent = (text: string, cursorPos: number): string => {
