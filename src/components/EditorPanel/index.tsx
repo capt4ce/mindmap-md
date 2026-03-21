@@ -324,6 +324,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
           onUndo={handleUndo}
           onRedo={handleRedo}
           onFormat={handleFormat}
+          onApplyColor={() => {}}
         />
       </div>
       <div className="editor-content">
