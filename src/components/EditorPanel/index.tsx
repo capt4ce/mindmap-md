@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import './styles.css'
 import EditorToolbar from '../EditorToolbar'
 
@@ -19,7 +19,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     italic: false,
     underline: false,
   })
-  const [cursorPosition, setCursorPosition] = useState(0)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   
   useEffect(() => {
     setLocalValue(value)
@@ -76,9 +76,9 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     const isBold = !!(boldOpenBefore && boldCloseAfter)
     
     // Check for italic: *text* or _text_ (but not ** which is bold)
-    // Look for single asterisk/underscore pairs
-    const italicOpenBefore = beforeCursor.match(/(?<!\*)\*[^*]*$/) || beforeCursor.match(/(?<!_)_[^_]*$/)
-    const italicCloseAfter = afterCursor.match(/^[^*]*\*(?!\*)/) || afterCursor.match(/^[^_]*_(?!_)/)
+    // Look for single asterisk/underscore pairs (Safari-compatible patterns)
+    const italicOpenBefore = beforeCursor.match(/(?:^|[^*])\*[^*]*$/) || beforeCursor.match(/(?:^|[^_])_[^_]*$/)
+    const italicCloseAfter = afterCursor.match(/^[^*]*\*($|[^*])/) || afterCursor.match(/^[^_]*_($|[^_])/)
     const isItalic = !!(italicOpenBefore && italicCloseAfter)
     
     // Check for underline: <u>text</u>
@@ -89,19 +89,17 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     return { bold: isBold, italic: isItalic, underline: isUnderline }
   }, [])
 
-  const handleSelect = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    const target = e.target as HTMLTextAreaElement
-    const pos = target.selectionStart
-    setCursorPosition(pos)
+  const handleSelect = useCallback(() => {
+    if (!textareaRef.current) return
+    const pos = textareaRef.current.selectionStart
     setActiveFormats(detectFormatsAtCursor(localValue, pos))
   }, [localValue, detectFormatsAtCursor])
 
   const handleFormat = useCallback((format: 'bold' | 'italic' | 'underline') => {
-    const textarea = document.querySelector('.markdown-textarea') as HTMLTextAreaElement
-    if (!textarea) return
+    if (!textareaRef.current) return
     
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
+    const start = textareaRef.current.selectionStart
+    const end = textareaRef.current.selectionEnd
     const selectedText = localValue.substring(start, end)
     
     const formatMarkers: Record<string, { open: string; close: string }> = {
@@ -118,15 +116,38 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     let newCursorEnd: number
     
     if (isFormatted && selectedText) {
-      // Remove formatting from selection
-      newText = localValue.substring(0, start) + selectedText + localValue.substring(end)
-      newCursorStart = start
-      newCursorEnd = end
+      // Remove formatting from selection by stripping markers around it
+      const beforeSelection = localValue.substring(0, start)
+      const afterSelection = localValue.substring(end)
+      // Check if markers exist right before/after selection and remove them
+      const hasOpenMarker = beforeSelection.endsWith(marker.open)
+      const hasCloseMarker = afterSelection.startsWith(marker.close)
+      if (hasOpenMarker && hasCloseMarker) {
+        newText = beforeSelection.slice(0, -marker.open.length) + selectedText + afterSelection.slice(marker.close.length)
+        newCursorStart = start - marker.open.length
+        newCursorEnd = end - marker.open.length
+      } else {
+        // Fallback: just keep text as-is
+        newText = localValue
+        newCursorStart = start
+        newCursorEnd = end
+      }
     } else if (isFormatted) {
-      // Remove formatting around cursor (simplified: just insert empty)
-      newText = localValue
-      newCursorStart = start
-      newCursorEnd = end
+      // Remove formatting around cursor - find and remove nearest markers
+      const beforeText = localValue.substring(0, start)
+      const afterText = localValue.substring(end)
+      const openIndex = beforeText.lastIndexOf(marker.open)
+      const closeIndex = afterText.indexOf(marker.close)
+      if (openIndex !== -1 && closeIndex !== -1) {
+        newText = beforeText.substring(0, openIndex) + beforeText.substring(openIndex + marker.open.length) +
+                  afterText.substring(0, closeIndex) + afterText.substring(closeIndex + marker.close.length)
+        newCursorStart = openIndex
+        newCursorEnd = openIndex + (start - openIndex - marker.open.length)
+      } else {
+        newText = localValue
+        newCursorStart = start
+        newCursorEnd = end
+      }
     } else if (selectedText) {
       // Wrap selection with format
       newText = localValue.substring(0, start) + marker.open + selectedText + marker.close + localValue.substring(end)
@@ -152,10 +173,12 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     
     // Restore selection and update formats after render
     setTimeout(() => {
-      textarea.selectionStart = newCursorStart
-      textarea.selectionEnd = newCursorEnd
-      textarea.focus()
-      setActiveFormats(detectFormatsAtCursor(newText, newCursorStart))
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = newCursorStart
+        textareaRef.current.selectionEnd = newCursorEnd
+        textareaRef.current.focus()
+        setActiveFormats(detectFormatsAtCursor(newText, newCursorStart))
+      }
     }, 0)
   }, [localValue, history, historyIndex, onChange, activeFormats, detectFormatsAtCursor])
   
@@ -305,6 +328,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
       </div>
       <div className="editor-content">
         <textarea
+          ref={textareaRef}
           className="markdown-textarea"
           value={localValue}
           onChange={handleChange}
