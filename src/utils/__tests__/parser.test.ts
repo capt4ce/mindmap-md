@@ -74,6 +74,7 @@ More text
     expect(result.nodes[result.rootIds[0]].text).toBe('Node 1');
     expect(result.nodes[result.rootIds[0]].color).toBeUndefined();
     expect(result.nodes[result.rootIds[0]].outlineColor).toBeUndefined();
+    expect(result.nodes[result.rootIds[0]].rootId).toBe(result.rootIds[0]);
   });
 
   it('parses color attribute with = format', () => {

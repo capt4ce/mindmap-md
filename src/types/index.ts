@@ -3,15 +3,23 @@ export interface TreeNode {
   text: string;
   level: number;
   parentId: string | null;
+  rootId: string;
   children: string[];
   collapsed: boolean;
   color?: string;
   outlineColor?: string;
 }
 
+export interface RootConfig {
+  id: string;
+  horizontalSpacing?: number;
+  verticalSpacing?: number;
+}
+
 export interface TreeData {
   nodes: Record<string, TreeNode>;
   rootIds: string[];
+  rootConfigs?: Record<string, RootConfig>;
 }
 
 export type FlowNode = {

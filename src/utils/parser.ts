@@ -58,28 +58,37 @@ export function parseMarkdownToTree(markdown: string): TreeData {
     const level = Math.floor(indent / 2) // 2 spaces = 1 level
     
     const id = `node-${nodeIdCounter++}`
-    const node: TreeNode = {
-      id,
-      text,
-      level,
-      parentId: null,
-      children: [],
-      collapsed: false,
-      color,
-      outlineColor,
-    }
     
     // Find parent by popping stack until we find correct level
     while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= level) {
       parentStack.pop()
     }
     
+    // Determine rootId: if no parent, this is a new root
+    let rootId: string
     if (parentStack.length > 0) {
       const parent = parentStack[parentStack.length - 1]
-      node.parentId = parent.id
-      nodes[parent.id].children.push(id)
+      rootId = nodes[parent.id].rootId
     } else {
+      rootId = id
       rootIds.push(id)
+    }
+    
+    const node: TreeNode = {
+      id,
+      text,
+      level,
+      parentId: parentStack.length > 0 ? parentStack[parentStack.length - 1].id : null,
+      rootId,
+      children: [],
+      collapsed: false,
+      color,
+      outlineColor,
+    }
+    
+    if (parentStack.length > 0) {
+      const parent = parentStack[parentStack.length - 1]
+      nodes[parent.id].children.push(id)
     }
     
     nodes[id] = node
