@@ -98,10 +98,12 @@ export default function EditorToolbar({
           {PRESET_COLORS.map((color) => (
             <button
               key={color}
+              type="button"
               className={`color-swatch ${currentColor === color ? 'active' : ''}`}
               style={{ backgroundColor: color }}
               onClick={() => onApplyColor('color', color)}
               title={`Fill color ${color}`}
+              aria-label={`Select fill color ${color}`}
             />
           ))}
           <input
@@ -110,6 +112,7 @@ export default function EditorToolbar({
             value={currentColor || '#000000'}
             onChange={(e) => onApplyColor('color', e.target.value)}
             title="Custom fill color"
+            aria-label="Custom fill color picker"
           />
         </div>
       </div>
@@ -122,10 +125,12 @@ export default function EditorToolbar({
           {PRESET_COLORS.map((color) => (
             <button
               key={color}
+              type="button"
               className={`color-swatch ${currentOutlineColor === color ? 'active' : ''}`}
               style={{ backgroundColor: color }}
               onClick={() => onApplyColor('outlineColor', color)}
               title={`Outline color ${color}`}
+              aria-label={`Select outline color ${color}`}
             />
           ))}
           <input
@@ -134,6 +139,7 @@ export default function EditorToolbar({
             value={currentOutlineColor || '#000000'}
             onChange={(e) => onApplyColor('outlineColor', e.target.value)}
             title="Custom outline color"
+            aria-label="Custom outline color picker"
           />
         </div>
       </div>
