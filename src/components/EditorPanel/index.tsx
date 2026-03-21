@@ -138,6 +138,20 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     if (hasMultipleLines && selectedText) {
       // Multi-line selection: apply/remove formatting from each line
       const lines = selectedText.split('\n')
+      
+      // Check if all non-empty lines already have the format
+      const nonEmptyLines = lines.filter(line => line.trim().length > 0)
+      const linesWithFormat = nonEmptyLines.filter(line => {
+        if (format === 'bold') {
+          return line.startsWith('**') || line.startsWith('__')
+        } else if (format === 'italic') {
+          return (line.startsWith('*') || line.startsWith('_')) && !line.startsWith('**')
+        } else {
+          return line.startsWith('<u>')
+        }
+      })
+      const allLinesHaveFormat = nonEmptyLines.length > 0 && linesWithFormat.length === nonEmptyLines.length
+      
       const formattedLines = lines.map(line => {
         const trimmedLine = line.trim()
         if (!trimmedLine) return line // Keep empty lines as-is
@@ -147,8 +161,8 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
                               (format === 'italic' && (line.startsWith('*') || line.startsWith('_'))) && !line.startsWith('**') ||
                               (format === 'underline' && line.startsWith('<u>'))
         
-        if (isFormatted || lineHasFormat) {
-          // Remove formatting from this line
+        if (allLinesHaveFormat) {
+          // Remove formatting from all lines
           let cleaned = line
           if (format === 'bold') {
             cleaned = cleaned.replace(/^\*\*|^__/, '').replace(/\*\*$|__$/, '')
@@ -158,9 +172,12 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
             cleaned = cleaned.replace(/^<u>/, '').replace(/<\/u>$/, '')
           }
           return cleaned
-        } else {
-          // Add formatting to this line
+        } else if (!lineHasFormat) {
+          // Add formatting to lines that don't have it
           return marker.open + line + marker.close
+        } else {
+          // Keep lines that already have the format as-is
+          return line
         }
       })
       
@@ -241,18 +258,31 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     const start = textareaRef.current.selectionStart
     const end = textareaRef.current.selectionEnd
     
+    // Check if there's an actual selection or just a cursor position
+    const hasSelection = start !== end
+    // Store original cursor position for restoration
+    const originalCursorPos = start
+    
     // Find the start of the first line in selection
     const firstLineStart = localValue.lastIndexOf('\n', start - 1) + 1
     // Find the end of the last line in selection
-    const lastLineEnd = localValue.indexOf('\n', end)
+    // If no selection (just cursor), only use current line; otherwise find end of selected lines
+    const lastLineEnd = hasSelection 
+      ? localValue.indexOf('\n', end)
+      : localValue.indexOf('\n', start)
     const actualLastLineEnd = lastLineEnd === -1 ? localValue.length : lastLineEnd
     
     const beforeSelection = localValue.substring(0, firstLineStart)
     const selectedLines = localValue.substring(firstLineStart, actualLastLineEnd)
     const afterSelection = localValue.substring(actualLastLineEnd)
     
-    // Process each line in the selection
+    // Check if all lines have the same color to determine toggle behavior
     const lines = selectedLines.split('\n')
+    const attrName = type === 'color' ? 'color' : 'outline'
+    const currentColorValue = type === 'color' ? currentColors.color : currentColors.outlineColor
+    const isTogglingOff = currentColorValue === value
+    
+    // Process each line in the selection
     const processedLines = lines.map(line => {
       // Skip empty lines
       if (!line.trim()) return line
@@ -277,9 +307,12 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
         }
       }
       
-      // Update the specific attribute
-      const attrName = type === 'color' ? 'color' : 'outline'
-      attrMap[attrName] = value
+      // Toggle: if the same color is already set, remove it; otherwise set the new color
+      if (isTogglingOff) {
+        delete attrMap[attrName]
+      } else {
+        attrMap[attrName] = value
+      }
       
       // Build new attribute string
       const attrEntries = Object.entries(attrMap)
@@ -295,7 +328,13 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     
     setLocalValue(newText)
     onChange(newText)
-    setCurrentColors(detectColorsAtLine(newText, start))
+    
+    // Update current colors state
+    if (isTogglingOff) {
+      setCurrentColors(prev => ({ ...prev, [type]: undefined }))
+    } else {
+      setCurrentColors(prev => ({ ...prev, [type]: value }))
+    }
     
     // Update history
     const newHistory = history.slice(0, historyIndex + 1)
@@ -307,12 +346,19 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     // Restore selection and focus
     setTimeout(() => {
       if (textareaRef.current) {
-        textareaRef.current.selectionStart = start
-        textareaRef.current.selectionEnd = start + newSelectedLines.length
+        if (hasSelection) {
+          // Restore the original selection range
+          textareaRef.current.selectionStart = start
+          textareaRef.current.selectionEnd = start + newSelectedLines.length
+        } else {
+          // Restore cursor position (no selection)
+          textareaRef.current.selectionStart = originalCursorPos
+          textareaRef.current.selectionEnd = originalCursorPos
+        }
         textareaRef.current.focus()
       }
     }, 0)
-  }, [localValue, history, historyIndex, onChange, detectColorsAtLine])
+  }, [localValue, history, historyIndex, onChange, currentColors])
   
   const getLineIndent = (text: string, cursorPos: number): string => {
     const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
@@ -358,11 +404,17 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault()
       const indent = ' '.repeat(INDENT_SIZE)
-      const newValue = localValue.substring(0, start) + indent + localValue.substring(end)
+      
+      // Find the beginning of the current line
+      const lineStart = localValue.lastIndexOf('\n', start - 1) + 1
+      
+      // Insert indent at the beginning of the line
+      const newValue = localValue.substring(0, lineStart) + indent + localValue.substring(lineStart)
       setLocalValue(newValue)
       onChange(newValue)
       
       setTimeout(() => {
+        // Move cursor to account for the inserted indent
         target.selectionStart = target.selectionEnd = start + INDENT_SIZE
       }, 0)
       return
@@ -473,7 +525,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
 
 - Use dashes for bullet points
 - Press Enter on a list item to create a new list item
-- Tab key inserts 2 spaces
+- Tab key indents the current line by 2 spaces
 - Backspace on indent removes 2 spaces"
           spellCheck={false}
         />

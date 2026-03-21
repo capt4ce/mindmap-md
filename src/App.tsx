@@ -8,6 +8,7 @@ import { useLocalStorage } from './hooks/useLocalStorage'
 import { useDebouncedCallback } from './hooks/useDebouncedCallback'
 import { parseMarkdownToTree } from './utils/parser'
 import { Note, NotesStorage } from './types'
+import { Download, Upload } from 'lucide-react'
 import './styles/App.css'
 
 const DEFAULT_MARKDOWN = `- New Note
@@ -178,6 +179,50 @@ function App() {
     setIsDarkMode(prev => !prev)
   }, [])
 
+  // Export current note as markdown file
+  const handleExport = useCallback(() => {
+    if (!activeNote) return
+    
+    const blob = new Blob([activeNote.content], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activeNote.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [activeNote])
+
+  // Import markdown file
+  const handleImport = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md,.markdown,.txt'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        if (content) {
+          const newNote = createNewNote()
+          newNote.title = file.name.replace(/\.[^/.]+$/, '') // Remove extension
+          newNote.content = content
+          
+          const current = storageRef.current
+          setStorage({
+            notes: [...current.notes, newNote],
+            activeNoteId: newNote.id,
+          })
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }, [setStorage])
+
   return (
     <div className="app">
       <NotesList
@@ -191,7 +236,28 @@ function App() {
       <div className="app-main-container">
         <header className="app-header">
           <h1>{activeNote?.title || 'Mindmap Markdown Editor'}</h1>
-          <ThemeToggle isDark={isDarkMode} onToggle={handleThemeToggle} />
+          <div className="header-actions">
+            <button
+              className="header-btn"
+              onClick={handleExport}
+              disabled={!activeNote}
+              title="Export as Markdown"
+              aria-label="Export as Markdown"
+            >
+              <Download size={18} />
+              <span>Export</span>
+            </button>
+            <button
+              className="header-btn"
+              onClick={handleImport}
+              title="Import Markdown File"
+              aria-label="Import Markdown File"
+            >
+              <Upload size={18} />
+              <span>Import</span>
+            </button>
+            <ThemeToggle isDark={isDarkMode} onToggle={handleThemeToggle} />
+          </div>
         </header>
         <main className="app-main">
           <div style={{ height: `${100 - editorHeight}%`, display: 'flex' }}>

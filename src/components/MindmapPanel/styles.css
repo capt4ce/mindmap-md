@@ -17,6 +17,7 @@
   border-radius: 8px;
   padding: 8px 12px;
   min-width: 120px;
+  max-width: 400px;
   display: flex;
   align-items: center;
   box-shadow: var(--shadow-sm);
@@ -59,9 +60,11 @@
 .node-label {
   font-size: 14px;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  max-width: 300px;
+  word-wrap: break-word;
+  line-height: 1.4;
 }
 
 .handle {
@@ -80,4 +83,30 @@
   padding: 2px 6px;
   min-width: 100px;
   outline: none;
+}
+
+/* React Flow Controls - Dark Mode Support */
+.react-flow__controls {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.react-flow__controls-button {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--bg-tertiary);
+}
+
+.react-flow__controls-button svg {
+  fill: var(--text-primary);
 }

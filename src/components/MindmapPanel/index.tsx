@@ -91,8 +91,9 @@ function MindmapPanelInner({
         onNodeClick={handleNodeClick}
         onPaneClick={handleContextMenuClose}
         nodeTypes={nodeTypes}
-        fitView
         attributionPosition="bottom-right"
+        minZoom={0.1}
+        maxZoom={2}
       >
         <Background color="var(--border-color)" gap={20} size={1} />
         <Controls />
