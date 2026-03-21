@@ -19,6 +19,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     italic: false,
     underline: false,
   })
+  const [currentColors, setCurrentColors] = useState<{ color?: string; outlineColor?: string }>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   
   useEffect(() => {
@@ -89,11 +90,27 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     return { bold: isBold, italic: isItalic, underline: isUnderline }
   }, [])
 
+  const detectColorsAtLine = useCallback((text: string, cursorPos: number) => {
+    const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
+    const lineEnd = text.indexOf('\n', cursorPos)
+    const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd)
+    
+    // Check for {color=...} or {color:...}
+    const colorMatch = line.match(/\{[^}]*\bcolor[=:]([^}\s]+)/)
+    const outlineMatch = line.match(/\{[^}]*\boutline[=:]([^}\s]+)/)
+    
+    return {
+      color: colorMatch ? colorMatch[1] : undefined,
+      outlineColor: outlineMatch ? outlineMatch[1] : undefined,
+    }
+  }, [])
+
   const handleSelect = useCallback(() => {
     if (!textareaRef.current) return
     const pos = textareaRef.current.selectionStart
     setActiveFormats(detectFormatsAtCursor(localValue, pos))
-  }, [localValue, detectFormatsAtCursor])
+    setCurrentColors(detectColorsAtLine(localValue, pos))
+  }, [localValue, detectFormatsAtCursor, detectColorsAtLine])
 
   const handleFormat = useCallback((format: 'bold' | 'italic' | 'underline') => {
     if (!textareaRef.current) return
@@ -181,6 +198,63 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
       }
     }, 0)
   }, [localValue, history, historyIndex, onChange, activeFormats, detectFormatsAtCursor])
+
+  const handleApplyColor = useCallback((type: 'color' | 'outlineColor', value: string) => {
+    if (!textareaRef.current) return
+    
+    const cursorPos = textareaRef.current.selectionStart
+    const lineStart = localValue.lastIndexOf('\n', cursorPos - 1) + 1
+    const lineEnd = localValue.indexOf('\n', cursorPos)
+    const actualLineEnd = lineEnd === -1 ? localValue.length : lineEnd
+    
+    const beforeLine = localValue.substring(0, lineStart)
+    const line = localValue.substring(lineStart, actualLineEnd)
+    const afterLine = localValue.substring(actualLineEnd)
+    
+    // Parse existing attributes
+    const attrMatch = line.match(/^(.*?)\s*(\{[^}]*\})?\s*$/)
+    if (!attrMatch) return
+    
+    const nodeText = attrMatch[1]
+    const existingAttrs = attrMatch[2] || ''
+    
+    // Parse existing attributes into a map
+    const attrMap: Record<string, string> = {}
+    if (existingAttrs) {
+      const attrContent = existingAttrs.slice(1, -1) // Remove { and }
+      const pairs = attrContent.split(/[;\s]+/).filter(Boolean)
+      for (const pair of pairs) {
+        const match = pair.match(/^(\w+)[=:](.+)$/)
+        if (match) {
+          attrMap[match[1]] = match[2]
+        }
+      }
+    }
+    
+    // Update the specific attribute
+    const attrName = type === 'color' ? 'color' : 'outline'
+    attrMap[attrName] = value
+    
+    // Build new attribute string
+    const attrEntries = Object.entries(attrMap)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' ')
+    const newAttrs = attrEntries ? ` {${attrEntries}}` : ''
+    
+    const newLine = nodeText + newAttrs
+    const newText = beforeLine + newLine + afterLine
+    
+    setLocalValue(newText)
+    onChange(newText)
+    setCurrentColors(detectColorsAtLine(newText, cursorPos))
+    
+    // Update history
+    const newHistory = history.slice(0, historyIndex + 1)
+    if (newHistory.length >= 50) newHistory.shift()
+    newHistory.push(newText)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }, [localValue, history, historyIndex, onChange, detectColorsAtLine])
   
   const getLineIndent = (text: string, cursorPos: number): string => {
     const lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
@@ -321,10 +395,12 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
           canUndo={historyIndex > 0}
           canRedo={historyIndex < history.length - 1}
           activeFormats={activeFormats}
+          currentColor={currentColors.color}
+          currentOutlineColor={currentColors.outlineColor}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onFormat={handleFormat}
-          onApplyColor={() => {}}
+          onApplyColor={handleApplyColor}
         />
       </div>
       <div className="editor-content">
