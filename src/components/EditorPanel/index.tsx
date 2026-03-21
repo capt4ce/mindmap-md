@@ -132,8 +132,44 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     let newCursorStart: number
     let newCursorEnd: number
     
-    if (isFormatted && selectedText) {
-      // Remove formatting from selection by stripping markers around it
+    // Check if selection spans multiple lines
+    const hasMultipleLines = selectedText.includes('\n')
+    
+    if (hasMultipleLines && selectedText) {
+      // Multi-line selection: apply/remove formatting from each line
+      const lines = selectedText.split('\n')
+      const formattedLines = lines.map(line => {
+        const trimmedLine = line.trim()
+        if (!trimmedLine) return line // Keep empty lines as-is
+        
+        // Check if line already has the format
+        const lineHasFormat = (format === 'bold' && (line.startsWith('**') || line.startsWith('__'))) ||
+                              (format === 'italic' && (line.startsWith('*') || line.startsWith('_'))) && !line.startsWith('**') ||
+                              (format === 'underline' && line.startsWith('<u>'))
+        
+        if (isFormatted || lineHasFormat) {
+          // Remove formatting from this line
+          let cleaned = line
+          if (format === 'bold') {
+            cleaned = cleaned.replace(/^\*\*|^__/, '').replace(/\*\*$|__$/, '')
+          } else if (format === 'italic') {
+            cleaned = cleaned.replace(/^\*|^_/, '').replace(/\*$|_$/, '')
+          } else if (format === 'underline') {
+            cleaned = cleaned.replace(/^<u>/, '').replace(/<\/u>$/, '')
+          }
+          return cleaned
+        } else {
+          // Add formatting to this line
+          return marker.open + line + marker.close
+        }
+      })
+      
+      const newSelectedText = formattedLines.join('\n')
+      newText = localValue.substring(0, start) + newSelectedText + localValue.substring(end)
+      newCursorStart = start
+      newCursorEnd = start + newSelectedText.length
+    } else if (isFormatted && selectedText) {
+      // Single line: Remove formatting from selection by stripping markers around it
       const beforeSelection = localValue.substring(0, start)
       const afterSelection = localValue.substring(end)
       // Check if markers exist right before/after selection and remove them
@@ -166,7 +202,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
         newCursorEnd = end
       }
     } else if (selectedText) {
-      // Wrap selection with format
+      // Single line: Wrap selection with format
       newText = localValue.substring(0, start) + marker.open + selectedText + marker.close + localValue.substring(end)
       newCursorStart = start
       newCursorEnd = end + marker.open.length + marker.close.length
@@ -202,51 +238,64 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
   const handleApplyColor = useCallback((type: 'color' | 'outlineColor', value: string) => {
     if (!textareaRef.current) return
     
-    const cursorPos = textareaRef.current.selectionStart
-    const lineStart = localValue.lastIndexOf('\n', cursorPos - 1) + 1
-    const lineEnd = localValue.indexOf('\n', cursorPos)
-    const actualLineEnd = lineEnd === -1 ? localValue.length : lineEnd
+    const start = textareaRef.current.selectionStart
+    const end = textareaRef.current.selectionEnd
     
-    const beforeLine = localValue.substring(0, lineStart)
-    const line = localValue.substring(lineStart, actualLineEnd)
-    const afterLine = localValue.substring(actualLineEnd)
+    // Find the start of the first line in selection
+    const firstLineStart = localValue.lastIndexOf('\n', start - 1) + 1
+    // Find the end of the last line in selection
+    const lastLineEnd = localValue.indexOf('\n', end)
+    const actualLastLineEnd = lastLineEnd === -1 ? localValue.length : lastLineEnd
     
-    // Parse existing attributes
-    const attrMatch = line.match(/^(.*?)\s*(\{[^}]*\})?\s*$/)
-    if (!attrMatch) return
+    const beforeSelection = localValue.substring(0, firstLineStart)
+    const selectedLines = localValue.substring(firstLineStart, actualLastLineEnd)
+    const afterSelection = localValue.substring(actualLastLineEnd)
     
-    const nodeText = attrMatch[1]
-    const existingAttrs = attrMatch[2] || ''
-    
-    // Parse existing attributes into a map
-    const attrMap: Record<string, string> = {}
-    if (existingAttrs) {
-      const attrContent = existingAttrs.slice(1, -1) // Remove { and }
-      const pairs = attrContent.split(/[;\s]+/).filter(Boolean)
-      for (const pair of pairs) {
-        const match = pair.match(/^(\w+)[=:](.+)$/)
-        if (match) {
-          attrMap[match[1]] = match[2]
+    // Process each line in the selection
+    const lines = selectedLines.split('\n')
+    const processedLines = lines.map(line => {
+      // Skip empty lines
+      if (!line.trim()) return line
+      
+      // Parse existing attributes
+      const attrMatch = line.match(/^(.*?)\s*(\{[^}]*\})?\s*$/)
+      if (!attrMatch) return line
+      
+      const nodeText = attrMatch[1]
+      const existingAttrs = attrMatch[2] || ''
+      
+      // Parse existing attributes into a map
+      const attrMap: Record<string, string> = {}
+      if (existingAttrs) {
+        const attrContent = existingAttrs.slice(1, -1) // Remove { and }
+        const pairs = attrContent.split(/[;\s]+/).filter(Boolean)
+        for (const pair of pairs) {
+          const match = pair.match(/^(\w+)[=:](.+)$/)
+          if (match) {
+            attrMap[match[1]] = match[2]
+          }
         }
       }
-    }
+      
+      // Update the specific attribute
+      const attrName = type === 'color' ? 'color' : 'outline'
+      attrMap[attrName] = value
+      
+      // Build new attribute string
+      const attrEntries = Object.entries(attrMap)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(' ')
+      const newAttrs = attrEntries ? ` {${attrEntries}}` : ''
+      
+      return nodeText + newAttrs
+    })
     
-    // Update the specific attribute
-    const attrName = type === 'color' ? 'color' : 'outline'
-    attrMap[attrName] = value
-    
-    // Build new attribute string
-    const attrEntries = Object.entries(attrMap)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(' ')
-    const newAttrs = attrEntries ? ` {${attrEntries}}` : ''
-    
-    const newLine = nodeText + newAttrs
-    const newText = beforeLine + newLine + afterLine
+    const newSelectedLines = processedLines.join('\n')
+    const newText = beforeSelection + newSelectedLines + afterSelection
     
     setLocalValue(newText)
     onChange(newText)
-    setCurrentColors(detectColorsAtLine(newText, cursorPos))
+    setCurrentColors(detectColorsAtLine(newText, start))
     
     // Update history
     const newHistory = history.slice(0, historyIndex + 1)
@@ -255,11 +304,11 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
     setHistory(newHistory)
     setHistoryIndex(newHistory.length - 1)
     
-    // Restore cursor position and focus
+    // Restore selection and focus
     setTimeout(() => {
       if (textareaRef.current) {
-        textareaRef.current.selectionStart = cursorPos
-        textareaRef.current.selectionEnd = cursorPos
+        textareaRef.current.selectionStart = start
+        textareaRef.current.selectionEnd = start + newSelectedLines.length
         textareaRef.current.focus()
       }
     }, 0)
