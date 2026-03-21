@@ -14,7 +14,7 @@ export default function EditorPanel({ value, onChange, noteId }: EditorPanelProp
   const [localValue, setLocalValue] = useState(value)
   const [history, setHistory] = useState<string[]>([value])
   const [historyIndex, setHistoryIndex] = useState(0)
-  const [activeFormats, _setActiveFormats] = useState({
+  const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
     underline: false,
