@@ -26,6 +26,7 @@ export default function EditorToolbar({
           onClick={onUndo}
           disabled={!canUndo}
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
           <Undo size={16} />
         </button>
@@ -34,6 +35,7 @@ export default function EditorToolbar({
           onClick={onRedo}
           disabled={!canRedo}
           title="Redo (Ctrl+Y)"
+          aria-label="Redo"
         >
           <Redo size={16} />
         </button>
@@ -46,6 +48,8 @@ export default function EditorToolbar({
           className={`toolbar-btn ${activeFormats.bold ? 'active' : ''}`}
           onClick={() => onFormat('bold')}
           title="Bold (Ctrl+B)"
+          aria-label="Bold"
+          aria-pressed={activeFormats.bold}
         >
           <Bold size={16} />
         </button>
@@ -53,6 +57,8 @@ export default function EditorToolbar({
           className={`toolbar-btn ${activeFormats.italic ? 'active' : ''}`}
           onClick={() => onFormat('italic')}
           title="Italic (Ctrl+I)"
+          aria-label="Italic"
+          aria-pressed={activeFormats.italic}
         >
           <Italic size={16} />
         </button>
@@ -60,6 +66,8 @@ export default function EditorToolbar({
           className={`toolbar-btn ${activeFormats.underline ? 'active' : ''}`}
           onClick={() => onFormat('underline')}
           title="Underline (Ctrl+U)"
+          aria-label="Underline"
+          aria-pressed={activeFormats.underline}
         >
           <Underline size={16} />
         </button>
