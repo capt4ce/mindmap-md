@@ -8,6 +8,8 @@ export interface TreeNode {
   collapsed: boolean;
   color?: string;
   outlineColor?: string;
+  edgeName?: string; // Name of the edge from parent to this node
+  tags: string[]; // Tags extracted from text like #work #personal
 }
 
 export interface RootConfig {
@@ -32,6 +34,7 @@ export type FlowNode = {
     collapsed: boolean;
     color?: string;
     outlineColor?: string;
+    tags: string[];
   };
 };
 
@@ -39,6 +42,19 @@ export type FlowEdge = {
   id: string;
   source: string;
   target: string;
+  label?: string;
+};
+
+// Edge group node for visual grouping of edges with same name
+export type EdgeGroupNode = {
+  id: string;
+  type: 'edgeGroup';
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    sourceId: string;
+    targetIds: string[];
+  };
 };
 
 export interface Note {

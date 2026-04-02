@@ -10,6 +10,16 @@ export function treeToMarkdown(tree: TreeData): string {
     const spaces = '  '.repeat(indent)
     let line = `${spaces}- ${node.text}`
 
+    // Append edge name if present
+    if (node.edgeName) {
+      line += ` > ${node.edgeName}`
+    }
+
+    // Append tags if present
+    if (node.tags && node.tags.length > 0) {
+      line += ` ${node.tags.map(tag => `#${tag}`).join(' ')}`
+    }
+
     // Append color attributes if present
     if (node.color || node.outlineColor) {
       const attrs: string[] = []

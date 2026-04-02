@@ -38,6 +38,49 @@ function parseNodeAttributes(text: string): {
   return { cleanText, ...attrs };
 }
 
+/**
+ * Parse edge name from text like "Node text > edge-name"
+ * Returns the clean text and edge name if present
+ */
+function parseEdgeName(text: string): {
+  cleanText: string;
+  edgeName?: string;
+} {
+  // Match edge name at the end: "text > edge-name" or "text >edge-name"
+  const edgeMatch = text.match(/\s*>\s*(.+?)\s*$/);
+  if (!edgeMatch) {
+    return { cleanText: text };
+  }
+
+  const edgeName = edgeMatch[1].trim();
+  const cleanText = text.slice(0, -edgeMatch[0].length).trim();
+
+  return { cleanText, edgeName };
+}
+
+/**
+ * Parse tags from text like "Node text #work #urgent"
+ * Returns the clean text (without tags) and array of tags
+ */
+function parseTags(text: string): {
+  cleanText: string;
+  tags: string[];
+} {
+  const tags: string[] = [];
+  // Match tags: #word (must start with letter, can contain letters/numbers/underscores)
+  const tagRegex = /#(\w+)/g;
+  let match;
+  
+  while ((match = tagRegex.exec(text)) !== null) {
+    tags.push(match[1]);
+  }
+  
+  // Remove tags from text
+  const cleanText = text.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+  
+  return { cleanText, tags };
+}
+
 export function parseMarkdownToTree(markdown: string): TreeData {
   const lines = markdown.split('\n')
   const nodes: Record<string, TreeNode> = {}
@@ -54,7 +97,9 @@ export function parseMarkdownToTree(markdown: string): TreeData {
     
     const indent = match[1].length
     const rawText = match[2].trim();
-    const { cleanText: text, color, outlineColor } = parseNodeAttributes(rawText);
+    const { cleanText: textWithoutAttrs, color, outlineColor } = parseNodeAttributes(rawText);
+    const { cleanText: textWithoutEdgeName, edgeName } = parseEdgeName(textWithoutAttrs);
+    const { cleanText: text, tags } = parseTags(textWithoutEdgeName);
     const level = Math.floor(indent / 2) // 2 spaces = 1 level
     
     const id = `node-${nodeIdCounter++}`
@@ -84,6 +129,8 @@ export function parseMarkdownToTree(markdown: string): TreeData {
       collapsed: false,
       color,
       outlineColor,
+      edgeName,
+      tags,
     }
     
     if (parentStack.length > 0) {

@@ -6,8 +6,8 @@ describe('generateFlowElements', () => {
   it('should generate nodes and edges from tree', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false },
-        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false, tags: [] },
+        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0'],
     }
@@ -24,7 +24,7 @@ describe('generateFlowElements', () => {
   it('should position nodes in horizontal tree layout', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0'],
     }
@@ -38,8 +38,8 @@ describe('generateFlowElements', () => {
   it('should position child nodes to the right of parent', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false },
-        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false, tags: [] },
+        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0'],
     }
@@ -54,8 +54,8 @@ describe('generateFlowElements', () => {
   it('should not generate edges or children for collapsed nodes', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: true },
-        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: true, tags: [] },
+        'node-1': { id: 'node-1', text: 'Child', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0'],
     }
@@ -70,8 +70,8 @@ describe('generateFlowElements', () => {
   it('should handle multiple root nodes', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root 1', level: 0, parentId: null, rootId: 'node-0', children: [], collapsed: false },
-        'node-1': { id: 'node-1', text: 'Root 2', level: 0, parentId: null, rootId: 'node-1', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root 1', level: 0, parentId: null, rootId: 'node-0', children: [], collapsed: false, tags: [] },
+        'node-1': { id: 'node-1', text: 'Root 2', level: 0, parentId: null, rootId: 'node-1', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0', 'node-1'],
     }
@@ -86,10 +86,10 @@ describe('generateFlowElements', () => {
   it('should apply custom horizontal spacing per root', () => {
     const tree: TreeData = {
       nodes: {
-        'node-0': { id: 'node-0', text: 'Root 1', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false },
-        'node-1': { id: 'node-1', text: 'Child 1', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false },
-        'node-2': { id: 'node-2', text: 'Root 2', level: 0, parentId: null, rootId: 'node-2', children: ['node-3'], collapsed: false },
-        'node-3': { id: 'node-3', text: 'Child 2', level: 1, parentId: 'node-2', rootId: 'node-2', children: [], collapsed: false },
+        'node-0': { id: 'node-0', text: 'Root 1', level: 0, parentId: null, rootId: 'node-0', children: ['node-1'], collapsed: false, tags: [] },
+        'node-1': { id: 'node-1', text: 'Child 1', level: 1, parentId: 'node-0', rootId: 'node-0', children: [], collapsed: false, tags: [] },
+        'node-2': { id: 'node-2', text: 'Root 2', level: 0, parentId: null, rootId: 'node-2', children: ['node-3'], collapsed: false, tags: [] },
+        'node-3': { id: 'node-3', text: 'Child 2', level: 1, parentId: 'node-2', rootId: 'node-2', children: [], collapsed: false, tags: [] },
       },
       rootIds: ['node-0', 'node-2'],
       rootConfigs: {
@@ -102,8 +102,10 @@ describe('generateFlowElements', () => {
     const child1 = nodes.find(n => n.id === 'node-1')
     const child2 = nodes.find(n => n.id === 'node-3')
     
-    // Child of root with custom spacing (300) should be further right than child with default spacing (180)
-    expect(child2!.position.x).toBe(300)
-    expect(child1!.position.x).toBe(180)
+    // Child of root with custom spacing (300) should be further right than child with default spacing (220)
+    // x = level * (horizontalSpacing + EDGE_GROUP_SPACING) = 1 * (300 + 100) = 400
+    expect(child2!.position.x).toBe(400)
+    // x = 1 * (220 + 100) = 320
+    expect(child1!.position.x).toBe(320)
   })
 })

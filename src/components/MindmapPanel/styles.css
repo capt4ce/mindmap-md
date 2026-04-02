@@ -85,6 +85,32 @@
   outline: none;
 }
 
+.node-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.node-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.node-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 /* React Flow Controls - Dark Mode Support */
 .react-flow__controls {
   background: var(--bg-primary);
@@ -109,4 +135,49 @@
 
 .react-flow__controls-button svg {
   fill: var(--text-primary);
+}
+
+/* Edge Group Node Styles */
+.edge-group-node {
+  background: var(--edge-group-bg, var(--bg-tertiary, #f0f0f0));
+  border: 2px solid var(--edge-group-border, var(--border-color, #ccc));
+  border-radius: 16px;
+  padding: 6px 14px;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.edge-group-node:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-color);
+}
+
+.edge-group-node.selected {
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.edge-group-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edge-group-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.edge-group-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: 10px;
 }
